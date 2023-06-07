@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from algorithms.TextNormalization import convert_negations, remove_stop_words, remove_special_characters
+from algorithms.InsertText import insertText
 import pandas as pd
 clf = None
 vectorizer = None
@@ -18,7 +19,7 @@ class NaiveBayes(generics.GenericAPIView):
             clf, vectorizer = self.train_model()
 
     def train_model(self):
-        df = pd.read_csv(r"algorithms\UpdatedDisneyLand.csv", encoding='latin-1')
+        df = pd.read_csv(r"algorithms\DisneyLandReviews.csv", encoding='latin-1')
 
         n_samples = df['Rating'].value_counts().min()
         df_balanced = pd.concat([df[df['Rating'] == rating].sample(n=n_samples, random_state=42) for rating in range(1, 6)])
@@ -46,17 +47,23 @@ class NaiveBayes(generics.GenericAPIView):
         vectorizer = CountVectorizer()
         X = vectorizer.fit_transform(ReviewTextArray)
 
-        X_train, X_test, RatingsArray_train, RatingsArray_test = train_test_split(X, RatingsArray, test_size=0.2)
+        X_train, X_test, RatingsArray_train, RatingsArray_test = train_test_split(X, RatingsArray, test_size=0.1)
         global clf
         clf = MultinomialNB()
         clf.fit(X_train, RatingsArray_train)
+        # Predict ratings for new sentences
+        predicted_ratings = clf.predict(X_test)
+        accuracy = accuracy_score(RatingsArray_test, predicted_ratings)
+        report = classification_report(RatingsArray_test, predicted_ratings)
+
+        print("Accuracy:", accuracy)
+        print("Classification Report:\n", report)   
+        print(predicted_ratings)
         return clf,vectorizer
 
     def post(self, request):
         newValue = request.data["text"]
-        newValues = []
-        newValue = convert_negations(newValue)
-        newValues.append(newValue)
+        newValues= insertText(newValue)
         global vectorizer, clf
         vectorizedInput = vectorizer.transform(newValues)
         predictedValue = clf.predict(vectorizedInput)
